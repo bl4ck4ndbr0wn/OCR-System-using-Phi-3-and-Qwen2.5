@@ -3,7 +3,7 @@ uvicorn==0.15.0
 python-multipart==0.0.5
 Pillow==8.3.2
 python-dotenv==1.0.1
-pydantic==1.8.2
+pydantic==1.10.13
 websockets==10.0
 python-twain==0.1.0  # For Windows TWAIN support
 python-sane==2.8.1   # For Linux SANE support
