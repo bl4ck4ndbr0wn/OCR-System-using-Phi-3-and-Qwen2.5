@@ -1,39 +1,94 @@
 import io
 import time
-import base64
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, List, Optional
 from PIL import Image
+from transformers import AutoModelForCausalLM, AutoProcessor
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoProcessor
+from huggingface_hub import snapshot_download
+import os
 
 class Phi3VisionService:
-    def __init__(self):
-        """Initialize the Phi-3-Vision model"""
+    def __init__(self, use_gpu: bool = False):
+        """
+        Initialize the Phi-3 Vision service
+        Args:
+            use_gpu (bool): Whether to use GPU if available. If False, forces CPU usage.
+        """
+        self.model_id = "microsoft/phi-3-vision-128k-instruct"
+        self.model = None
+        self.processor = None
+        self.use_gpu = use_gpu and torch.cuda.is_available()
+        self.device = "cuda" if self.use_gpu else "cpu"
+        self.model_path = None
+
+        print(f"Initializing Phi3VisionService with device: {self.device}")
+        print(f"Model ID: {self.model_id}")
+
+        if self.use_gpu:
+            print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+        else:
+            print("Using CPU mode")
+
+    async def _download_model(self):
+        """Download the model files if not already present"""
         try:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
-            print(f"Using device: {self.device}")
+            # Create a directory for the model if it doesn't exist
+            model_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub", "models--microsoft--Phi-3-vision-128k-instruct")
+            os.makedirs(model_dir, exist_ok=True)
 
-            # Load Phi-3-Vision model
-            # Using microsoft/phi-3-vision-128k-instruct
-            self.model_name = "microsoft/phi-3-vision-128k-instruct"
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                torch_dtype=torch.float16,
-                device_map="auto",
-                trust_remote_code=True,
-                use_flash_attention_2=False  # Disable flash attention
+            # Download the model files
+            self.model_path = snapshot_download(
+                repo_id=self.model_id,
+                local_dir=model_dir,
+                local_dir_use_symlinks=False,
+                resume_download=True
             )
-            self.processor = AutoProcessor.from_pretrained(
-                self.model_name,
-                trust_remote_code=True
-            )
-
-            print("Phi-3-Vision model loaded successfully")
+            print(f"Model downloaded to: {self.model_path}")
         except Exception as e:
-            print(f"Error initializing Phi-3-Vision model: {str(e)}")
-            # Fallback to a simplified initialization to avoid breaking the application
-            self.model = None
-            self.processor = None
+            print(f"Error downloading model: {str(e)}")
+            raise
+
+    async def _load_model(self):
+        """Lazy loading of the model and processor"""
+        try:
+            if self.model is None:
+                # Ensure model is downloaded
+                if not self.model_path:
+                    await self._download_model()
+
+                print(f"Loading model from: {self.model_path}")
+
+                # Configure model loading based on device
+                model_kwargs = {
+                    "device_map": self.device,
+                    "trust_remote_code": True,
+                }
+
+                if self.use_gpu:
+                    model_kwargs.update({
+                        "torch_dtype": torch.float16,
+                        "_attn_implementation": "flash_attention_2"
+                    })
+                else:
+                    model_kwargs.update({
+                        "torch_dtype": torch.float32,
+                        "_attn_implementation": "eager"
+                    })
+
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_path,
+                    **model_kwargs
+                )
+                print("Model loaded successfully")
+
+                self.processor = AutoProcessor.from_pretrained(
+                    self.model_path,
+                    trust_remote_code=True
+                )
+                print("Processor loaded successfully")
+        except Exception as e:
+            print(f"Error loading model: {str(e)}")
+            raise
 
     async def process_text_and_image(
         self,
@@ -41,71 +96,79 @@ class Phi3VisionService:
         image_bytes: bytes,
         languages: Optional[List[str]] = None
     ) -> Dict[str, Any]:
-        """Process text and image with Phi-3-Vision model"""
+        """Process text and image using Phi-3 Vision model"""
         start_time = time.time()
 
-        if self.model is None or self.processor is None:
-            return {
-                "text": text,
-                "confidence": 0.0,
-                "processing_time": 0.0,
-                "error": "Model not initialized properly"
-            }
-
         try:
-            # Convert image bytes to PIL Image
+            await self._load_model()
+
+            # Convert bytes to PIL Image
             image = Image.open(io.BytesIO(image_bytes))
 
-            # Create prompt based on the task
-            language_str = ""
-            if languages and len(languages) > 0:
-                language_str = f" The text is in {', '.join(languages)}."
-
+            # Prepare the prompt
             prompt = f"""<|system|>
-You are an expert OCR assistant. Your task is to correct and enhance the raw OCR text extracted from the image.
-Fix any errors, maintain the original formatting, and ensure the text is coherent and accurate.{language_str}
+You are an expert OCR assistant. Your task is to accurately extract text from the image.
+Ensure the text is coherent, maintains the original formatting, and is free of errors.
 <|user|>
-Here is the raw OCR text extracted from the image:
-
-{text}
-
-Please correct and enhance this text based on the image content.
+<|image_1|>
+Extract and enhance the text from this image. If multiple languages are present, identify them.
+<|end|>
 <|assistant|>
 """
+            # Process inputs
+            inputs = self.processor(
+                text=prompt,
+                images=image,
+                return_tensors="pt"
+            ).to(self.device)
 
-            # Process image and text with Phi-3-Vision
-            inputs = self.processor(text=prompt, images=image, return_tensors="pt").to(self.device)
+            # Generate response
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=512,
+                temperature=0.7,
+                top_p=0.9,
+                do_sample=True,
+                pad_token_id=self.processor.tokenizer.pad_token_id,
+                eos_token_id=self.processor.tokenizer.eos_token_id
+            )
 
-            # Generate enhanced text
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    **inputs,
-                    max_new_tokens=1024,
-                    do_sample=False
-                )
-
-            # Decode the generated text
-            generated_text = self.processor.decode(outputs[0], skip_special_tokens=True)
+            # Decode response
+            response = self.processor.decode(outputs[0], skip_special_tokens=True)
 
             # Extract the assistant's response
             # This is a simple extraction - might need adjustment based on actual output format
-            if "<|assistant|>" in generated_text:
-                enhanced_text = generated_text.split("<|assistant|>")[-1].strip()
+            if "<|assistant|>" in response:
+                enhanced_text = response.split("<|assistant|>")[-1].strip()
             else:
-                enhanced_text = generated_text.strip()
+                enhanced_text = response.strip()
+
+            # Calculate confidence score (simplified)
+            confidence = 0.85  # Placeholder confidence score
 
             processing_time = time.time() - start_time
 
             return {
                 "text": enhanced_text,
-                "confidence": 0.95,  # Placeholder confidence score
-                "processing_time": processing_time
+                "confidence": confidence,
+                "processing_time": processing_time,
+                "model_info": {
+                    "name": "Phi-3-Vision-128K-Instruct",
+                    "version": "1.0",
+                    "context_length": "128K",
+                    "parameters": "4.2B",
+                    "device": self.device,
+                    "gpu_enabled": self.use_gpu,
+                    "gpu_name": torch.cuda.get_device_name(0) if self.use_gpu else None
+                },
+                "languages": languages or ["en"],
+                "raw_response": response
             }
 
         except Exception as e:
-            print(f"Error processing with Phi-3-Vision: {str(e)}")
+            print(f"Error in Phi3VisionService: {str(e)}")
             return {
-                "text": text,  # Return original text on error
+                "text": "",
                 "confidence": 0.0,
                 "processing_time": time.time() - start_time,
                 "error": str(e)

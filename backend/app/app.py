@@ -17,18 +17,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# API Version 1
-app.include_router(
-    ocr.router,
-    prefix="/api/v1/ocr",
-    tags=["OCR API v1"]
-)
-
 # Scanner API
 app.include_router(
     scanner.router,
     prefix="/api/v1/scanner",
     tags=["Scanner API v1"]
+)
+
+# OCR API
+app.include_router(
+    ocr.router,
+    prefix="/api/v1/ocr",
+    tags=["OCR API v1"]
 )
 
 

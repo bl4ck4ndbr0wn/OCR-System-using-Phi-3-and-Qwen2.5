@@ -70,6 +70,9 @@ async def scan_document(scanner_id: str):
         image = scanner.scan()
         print("Scan completed")
 
+        # close scanner
+        sane.exit()
+
         # Convert PIL Image to base64
         img_byte_arr = io.BytesIO()
         image.save(img_byte_arr, format='PNG')
@@ -77,9 +80,6 @@ async def scan_document(scanner_id: str):
 
         # Convert to base64 string
         img_base64 = base64.b64encode(img_byte_arr).decode()
-
-        # close scanner
-        sane.exit()
 
         return JSONResponse(content={"image": img_base64})
 

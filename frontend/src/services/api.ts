@@ -11,13 +11,26 @@ const api = axios.create({
 });
 
 // Types
+export interface ModelDetails {
+  name: string;
+  version: string;
+  context_length: string;
+  parameters: string;
+  device: string;
+  gpu_enabled: boolean;
+  gpu_name?: string;
+}
+
 export interface OCRResponse {
   raw_text: string;
   enhanced_text: string;
   model_used: string;
   confidence: number;
   processing_time: number;
-  scanner_info?: Record<string, any>;
+  scanner_info: Record<string, any>;
+  model_details?: ModelDetails;
+  languages?: string[];
+  raw_response?: string;
 }
 
 export interface ModelInfo {
@@ -25,6 +38,7 @@ export interface ModelInfo {
   name: string;
   description: string;
   capabilities: string[];
+  gpu_required: boolean;
 }
 
 export interface ModelsResponse {
@@ -61,65 +75,47 @@ const handleError = (error: AxiosError) => {
 
 // OCR API Service
 export const ocrApi = {
-  getModels: async (): Promise<ModelsResponse> => {
-    try {
-      const response = await api.get<ModelsResponse>("/ocr/models");
-      return response.data;
-    } catch (error) {
-      return handleError(error as AxiosError);
-    }
+  getModels: async (): Promise<{ models: ModelInfo[] }> => {
+    const response = await axios.get(`${API_URL}/ocr/models`);
+    return response.data;
   },
 
-  extractText: async (formData: FormData): Promise<OCRResponse> => {
-    try {
-      const response = await api.post<OCRResponse>(
-        "/ocr/extract-text",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-      return response.data;
-    } catch (error) {
-      return handleError(error as AxiosError);
-    }
+  extractText: async (
+    formData: FormData,
+    useGpu: boolean = false
+  ): Promise<OCRResponse> => {
+    formData.append("use_gpu", useGpu.toString());
+    const response = await axios.post(`${API_URL}/ocr/extract-text`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
   },
 
   scannerExtractText: async (
-    imageData: string,
-    model: string = "phi3",
-    languages: string[] = [],
-    scannerInfo: ScannerInfo
+    formData: FormData,
+    useGpu: boolean = false
   ): Promise<OCRResponse> => {
-    try {
-      console.log("Extracting text from scanner:", imageData);
-      const payload = {
-        payload: {
-          image_data: imageData,
-          scanner_info: scannerInfo,
+    formData.append("use_gpu", useGpu.toString());
+    const response = await axios.post(
+      `${API_URL}/scanner/extract-text`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
         },
-        model,
-        languages,
-      };
-
-      const response = await api.post<OCRResponse>(
-        "/ocr/scanner/extract-text",
-        payload
-      );
-      return response.data;
-    } catch (error) {
-      return handleError(error as AxiosError);
-    }
+      }
+    );
+    return response.data;
   },
 };
 
 // Scanner API Service
 export const scannerApi = {
-  getScannerList: async (): Promise<ScannerListResponse> => {
+  getScannerList: async (): Promise<ScannerInfo[]> => {
     try {
-      const response = await api.get<ScannerListResponse>("/scanner/list");
+      const response = await api.get<ScannerInfo[]>("/scanner/list");
       return response.data;
     } catch (error) {
       return handleError(error as AxiosError);

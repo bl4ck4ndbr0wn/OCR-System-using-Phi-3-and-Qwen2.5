@@ -1,0 +1,3 @@
+([('scanner',
+   '/Users/nganga/Desktop/Projects/Goip/ocr/scanner_exe/backend/dist/scanner',
+   'EXECUTABLE')],)

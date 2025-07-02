@@ -1,0 +1,30 @@
+# Core dependencies
+fastapi==0.115.11
+uvicorn==0.34.0
+python-multipart==0.0.20
+pydantic==2.10.6
+
+# Image processing
+pillow==11.1.0
+numpy==1.24.3
+opencv-python==4.11.0.86
+
+# Deep learning and transformers (CPU optimized)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.1.2
+torchvision==0.16.2
+transformers==4.38.1
+accelerate==0.27.2
+huggingface_hub==0.20.3
+safetensors==0.4.2
+einops==0.7.0
+timm==0.9.12
+opencv-python-headless==4.8.1.78
+scipy==1.12.0
+tqdm==4.66.2
+
+# Scanner support
+python-sane==2.9.1
+
+# HTTP client
+requests==2.32.3

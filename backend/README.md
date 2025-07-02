@@ -27,29 +27,55 @@ backend/
 │   │   └── qwen_service.py    # Qwen2.5 integration
 │   └── main.py           # FastAPI application
 ├── main.py               # Entry point
-└── requirements.txt      # Python dependencies
+├── requirements-cpu.txt  # CPU-only dependencies
+├── requirements-gpu.txt  # GPU-enabled dependencies
+└── README.md            # This file
 ```
 
-## Installation and Setup
+## Prerequisites
 
-1. **Prerequisites**:
-   - Python 3.8+
+1. **Python Version**:
+   - Python 3.8 - 3.10 (recommended)
+   - Python 3.11 is not fully supported by some dependencies
+
+2. **System Requirements**:
    - Tesseract OCR installed on your system:
      - macOS: `brew install tesseract`
      - Ubuntu: `sudo apt-get install tesseract-ocr`
      - Windows: Download installer from <https://github.com/UB-Mannheim/tesseract/wiki>
 
-2. **Create a virtual environment**:
+## Installation and Setup
+
+1. **Create a virtual environment with the correct Python version**:
 
    ```bash
+   # First, ensure you have Python 3.8-3.10 installed
+   python --version  # Should show 3.8.x, 3.9.x, or 3.10.x
+
+   # Create virtual environment
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. **Install dependencies**:
+2. **Upgrade pip and install wheel**:
 
    ```bash
-   pip install -r requirements.txt
+   pip install --upgrade pip
+   pip install wheel
+   ```
+
+3. **Install dependencies based on your hardware**:
+
+   For CPU-only systems (e.g., Intel MacBooks):
+
+   ```bash
+   pip install -r requirements-cpu.txt
+   ```
+
+   For GPU-enabled systems (NVIDIA GPUs):
+
+   ```bash
+   pip install -r requirements-gpu.txt
    ```
 
 4. **Run the server**:
@@ -91,13 +117,29 @@ Returns information about the available OCR enhancement models.
       "id": "phi3",
       "name": "Microsoft Phi-3-Vision",
       "description": "Vision-language model for processing both text and images",
-      "capabilities": ["OCR enhancement", "image understanding", "visual context integration"]
+      "capabilities": ["OCR enhancement", "image understanding", "visual context integration"],
+      "gpu_required": true
     },
     {
       "id": "qwen25",
       "name": "Qwen2.5",
       "description": "Advanced language model for text processing with multilingual support",
-      "capabilities": ["text enhancement", "multilingual processing", "document understanding"]
+      "capabilities": ["text enhancement", "multilingual processing", "document understanding"],
+      "gpu_required": true
+    },
+    {
+      "id": "tesseract",
+      "name": "Tesseract OCR",
+      "description": "Open-source OCR engine with broad language support",
+      "capabilities": ["Fast text extraction", "Multi-language support", "Basic text recognition"],
+      "gpu_required": false
+    },
+    {
+      "id": "easyocr",
+      "name": "EasyOCR",
+      "description": "Modern OCR engine with deep learning capabilities",
+      "capabilities": ["High-accuracy text extraction", "Multi-language support", "Confidence scoring"],
+      "gpu_required": false
     }
   ]
 }
@@ -112,8 +154,9 @@ Extracts and enhances text from an uploaded image using the specified AI model.
 - Content-Type: `multipart/form-data`
 - Form fields:
   - `file`: Image file (required)
-  - `model`: Model to use for enhancement, either "phi3" or "qwen25" (default: "phi3")
+  - `model`: Model to use for enhancement (default: "phi3")
   - `languages`: Array of language codes for the text (optional)
+  - `use_gpu`: Boolean to enable/disable GPU usage (default: false)
 
 **Response**:
 
@@ -123,13 +166,24 @@ Extracts and enhances text from an uploaded image using the specified AI model.
   "enhanced_text": "This is the raw text extracted by OCR engine.",
   "model_used": "phi3",
   "confidence": 0.95,
-  "processing_time": 1.45
+  "processing_time": 1.45,
+  "model_details": {
+    "name": "Phi-3-Vision-128K-Instruct",
+    "version": "1.0",
+    "context_length": "128K",
+    "parameters": "4.2B",
+    "device": "cpu",
+    "gpu_enabled": false,
+    "gpu_name": null
+  },
+  "languages": ["en"],
+  "raw_response": "..."
 }
 ```
 
 **Error Responses**:
 
-- 400 Bad Request: If the uploaded file is not an image or the model is invalid
+- 400 Bad Request: If the uploaded file is not an image, the model is invalid, or GPU is required but not available
 - 500 Internal Server Error: If an error occurs during processing
 
 ### POST `/api/v1/scanner/extract-text`
@@ -260,26 +314,67 @@ You can configure the following environment variables:
 
 - `PHI3_MODEL_NAME`: Custom model name for Phi-3-Vision (default: "microsoft/phi-3-vision-128k-instruct")
 - `QWEN25_MODEL_NAME`: Custom model name for Qwen2.5 (default: "Qwen/Qwen2.5-7B-Instruct")
-- `USE_GPU`: Whether to use GPU for model inference (default: true)
+- `USE_GPU`: Whether to use GPU for model inference (default: false)
 - `MAX_UPLOAD_SIZE`: Maximum upload size in bytes (default: 10MB)
+
+## Hardware Requirements
+
+### CPU-Only Systems
+
+- Minimum 8GB RAM
+- Recommended 16GB RAM
+- Intel/AMD processor with AVX2 support
+- SSD storage recommended for faster model loading
+
+### GPU-Enabled Systems
+
+- NVIDIA GPU with at least 8GB VRAM
+- CUDA 11.8 or later
+- cuDNN 8.6 or later
+- Minimum 16GB system RAM
+- SSD storage recommended
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Model loading errors**:
+1. **Python Version Issues**:
+   - Ensure you're using Python 3.8-3.10
+   - If you have multiple Python versions, specify the correct version:
+
+     ```bash
+     python3.10 -m venv venv
+     ```
+
+2. **Dependency Installation Issues**:
+   - If you encounter version conflicts, try installing dependencies one by one
+   - For CPU-only systems, ensure you're using the CPU-specific PyTorch version
+   - If you get errors about missing dependencies, try:
+
+     ```bash
+     pip install --upgrade pip setuptools wheel
+     ```
+
+3. **Model loading errors**:
    - Ensure you have sufficient memory for the models
    - For GPU issues, check CUDA installation and compatibility
+   - Try using CPU mode if GPU mode fails
 
-2. **OCR quality issues**:
+4. **OCR quality issues**:
    - Ensure Tesseract is properly installed
    - Try different image preprocessing parameters
 
-3. **Slow processing**:
+5. **Slow processing**:
    - Consider using smaller models for faster processing
    - Ensure your hardware meets the requirements for running these models
+   - For CPU-only systems, expect longer processing times
 
-4. **Scanner connection issues**:
+6. **Scanner connection issues**:
    - Verify that the scanner is properly configured to send data to the API
    - Check network connectivity between the scanner and the server
    - Ensure the base64 encoding is properly implemented
+
+7. **GPU-related issues**:
+   - Verify CUDA installation: `nvidia-smi`
+   - Check PyTorch CUDA support: `python -c "import torch; print(torch.cuda.is_available())"`
+   - Ensure you're using the correct requirements file for your hardware
