@@ -35,40 +35,83 @@ ocr/
 
 ### Backend
 
-1. Make sure you have Python 3.8+ installed
-2. Install Tesseract OCR on your system:
-   - macOS: `brew install tesseract`
-   - Ubuntu: `sudo apt-get install tesseract-ocr`
-   - Windows: Download installer from https://github.com/UB-Mannheim/tesseract/wiki
-3. Set up and activate a virtual environment (optional but recommended):
-   ```bash
-   cd backend
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-4. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-5. Run the backend server:
-   ```bash
-   python main.py
-   ```
-   The server will be available at http://localhost:8000
+#### Prerequisites
+
+- **Python Version**: Python 3.8 - 3.10 is recommended. Python 3.11 is not fully supported by some dependencies.
+- [NOT IN USE IN V2] **Tesseract OCR**: Install Tesseract on your system:
+  - **macOS**: `brew install tesseract`
+  - **Ubuntu**: `sudo apt-get install tesseract-ocr`
+  - **Windows**: Download the installer from the [Tesseract at UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki) page.
+
+#### Installation
+
+1. **Navigate to the backend directory and create a virtual environment**:
+
+    ```bash
+    cd backend
+    
+    # Ensure you have a compatible Python version
+    python --version # Should be 3.8.x, 3.9.x, or 3.10.x
+    
+    # Create and activate virtual environment
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
+
+2. **Upgrade pip and install dependencies**:
+
+    ```bash
+    pip install --upgrade pip
+    pip install wheel
+    ```
+
+3. **Install Python packages based on your hardware**:
+
+    - **For CPU-only systems**:
+
+      ```bash
+      pip install -r requirements-cpu.txt
+      ```
+
+    - **For GPU-enabled systems (NVIDIA)**:
+
+      ```bash
+      pip install -r requirements-gpu.txt
+      ```
+
+    - A general `requirements.txt` is also available, but the hardware-specific files are recommended for optimal performance.
+
+#### Running the Backend
+
+1. **Start the server**:
+
+    ```bash
+    python main.py
+    ```
+
+    The server will be available at `http://localhost:8000`.
+
+2. **API Documentation**:
+    - **Swagger UI**: `http://localhost:8000/docs`
+    - **ReDoc**: `http://localhost:8000/redoc`
 
 ### Frontend
 
 1. Make sure you have Node.js and npm installed
 2. Install dependencies:
+
    ```bash
    cd frontend
    npm install
    ```
+
 3. Run the development server:
+
    ```bash
    npm run dev
    ```
-   The frontend will be available at http://localhost:5173
+
+   The frontend will be available at <http://localhost:5173>
 
 ## Usage
 
@@ -98,4 +141,4 @@ An advanced language model for text processing with multilingual support, enhanc
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
