@@ -13,7 +13,7 @@ opencv-python==4.11.0.86
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.1.2
 torchvision==0.16.2
-transformers==4.38.1
+transformers==4.52.1
 accelerate==0.27.2
 huggingface_hub==0.20.3
 safetensors==0.4.2
