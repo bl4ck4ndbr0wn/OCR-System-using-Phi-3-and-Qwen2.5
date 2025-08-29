@@ -11,7 +11,7 @@ opencv-python==4.11.0.86
 
 # Deep learning and transformers (CPU optimized)
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.1.2
+torch==2.7.1+cpu
 torchvision==0.16.2
 transformers==4.38.1
 accelerate==0.27.2
