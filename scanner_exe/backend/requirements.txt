@@ -7,4 +7,4 @@ pydantic==1.8.2
 websockets==10.0
 python-twain==0.1.0  # For Windows TWAIN support
 python-sane==2.8.1   # For Linux SANE support
-pyinstaller==5.6.2   # For building the executable
+pyinstaller==6.0.0   # For building the executable
