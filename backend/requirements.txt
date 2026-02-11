@@ -5,7 +5,7 @@ python-multipart==0.0.20
 pydantic==2.10.6
 
 # Image processing
-pillow==11.1.0
+pillow==12.1.1
 numpy==1.24.3
 opencv-python==4.11.0.86
 
